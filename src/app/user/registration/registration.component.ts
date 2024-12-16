@@ -2,6 +2,8 @@ import {Component} from '@angular/core';
 import {AbstractControl, FormBuilder, ReactiveFormsModule, ValidatorFn, Validators} from "@angular/forms";
 import {CommonModule} from "@angular/common";
 import {FirstKeyPipe} from "../../shared/pipes/first-key.pipe";
+import {AuthService} from "../../shared/services/auth.service";
+import {ToastrService} from "ngx-toastr";
 
 @Component({
   selector: 'app-registration',
@@ -12,7 +14,8 @@ import {FirstKeyPipe} from "../../shared/pipes/first-key.pipe";
 })
 export class RegistrationComponent {
   isSubmitted: boolean = false;
-  constructor(public formBuilder: FormBuilder) {
+  constructor(public formBuilder: FormBuilder, private service:AuthService,
+              private toastr: ToastrService) {
   }
 
   passwordMatchValidator: ValidatorFn = (control: AbstractControl): null => {
@@ -26,10 +29,16 @@ export class RegistrationComponent {
       confirmPassword?.setErrors(null);
     }
 
-
-
     return null;
   }
+
+  emailMatchValidation = ():null=>{
+    const email = this.form.get("email");
+    email?.setErrors({duplicateEmail:true});
+    return null;
+  }
+
+
   form = this.formBuilder.group({
     fullName: ['', Validators.required],
     email: ['', [Validators.required, Validators.email]],
@@ -42,7 +51,41 @@ export class RegistrationComponent {
 
   onSubmit() {
     this.isSubmitted = true;
-    console.log(this.form.value)
+    if(this.form.valid){
+      this.service.createUser(this.form.value).subscribe({
+        next: (res:any)=>{
+          if(res.succeeded){
+            this.form.reset();
+            this.isSubmitted = false;
+            this.toastr.success(
+              "New User Created!",
+              "Registration Successful")
+          }
+        },
+        error:(err:any) => {
+          if(err?.error?.errors){
+            err.error.errors.forEach((x:any)=>{
+              switch(x.code){
+                case "DuplicateEmail":
+                  this.emailMatchValidation();
+                  this.toastr.error(
+                    "Email is already taken.",
+                    "Registration failed")
+                  break;
+                case "DuplicateUserName":
+                  this.toastr.error(
+                    "User Name is already taken.",
+                    "Registration failed")
+                  break;
+              }
+            })
+          }
+          else{
+            this.toastr.error("Invalid form","Something went wrong")
+          }
+        }
+      })
+    }
   }
 
   hasDisplayableError(controlName:string):boolean{

@@ -21,6 +21,9 @@
       <div *ngIf="form.controls.email.hasError('email')">
         Please enter a valid email address.
       </div>
+      <div *ngIf="form.controls.email.hasError('duplicateEmail')">
+        This Email is already taken.
+      </div>
     </div>
   </div>
   <div class="mb-3">
